@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+set -exufo pipefail
+
+t="$(date '+%s')"
+
+GNUPGHOME="$(mktemp -d)"
+chmod 700 "$GNUPGHOME"
+export GNUPGHOME
+# keyring="$(mktemp)"
+gpg --generate-key --batch < gpg-key.conf
+gpg --import < debian-archive-keyring.gpg
+
+release="$(mktemp)"
+curl -sSL http://deb.debian.org/debian/dists/testing/InRelease | gpg --verify --output - > "$release"
+
+file_sets="$(mktemp -d)"
+repo="$(mktemp -d)"
+mkdir "$repo/main"
+
+index_files="$(mktemp)"
+
+for arch in all amd64 arm64; do
+	file="main/binary-$arch/Packages.xz"
+	mkdir "$repo/$(dirname "$file")"
+	hash="$(awk -v file="$file" '!/^ / { flag=0 } flag && $3 == file { print $1 } /^SHA256:$/ { flag = 1 }' < "$release")"
+	pkgs="$(./download_checked "$hash" "http://deb.debian.org/debian/dists/testing/$file")"
+	xz -d < "$pkgs" | ./packages.awk file_set_prefix="$file_sets/pkgs_${arch}_" num_file_sets=32 | xz > "$repo/$file"
+	rm "$pkgs"
+	size="$(wc -c "$repo/$file" | cut -d ' ' -f 1)"
+	hash="$(sha256sum "$repo/$file" | head -c 64)"
+	echo " $hash $size $file" >> "$index_files"
+done
+
+file="main/source/Sources.xz"
+mkdir "$repo/$(dirname "$file")"
+hash="$(awk -v file="$file" '!/^ / { flag=0 } flag && $3 == file { print $1 } /^SHA256:$/ { flag = 1 }' < "$release")"
+srcs="$(./download_checked "$hash" "http://deb.debian.org/debian/dists/testing/$file")"
+xz -d < "$srcs" | ./sources.awk file_set_prefix="$file_sets/srcs_" num_file_sets=32 | xz > "$repo/$file"
+rm "$srcs"
+size="$(wc -c "$repo/$file" | cut -d ' ' -f 1)"
+hash="$(sha256sum "$repo/$file" | head -c 64)"
+echo " $hash $size $file" >> "$index_files"
+
+rm "$release"
+
+gpg --clearsign --armor > "$repo/InRelease" << EOF
+Components: main
+Architectures: all amd64 arm64
+Date: $(date -R -u -d "@$t")
+Valid-Until: $(date -R -u -d "@$t + 7 days")
+SHA256:
+$(cat "$index_files")
+EOF
+
+gpg --export root > "$repo/keyring.gpg"
+
+tar -c -C "$repo" . | xz > repo.tar.xz
+tar -c -C "$file_sets" . | xz > file_sets.tar.xz
+rm -rf "$file_sets" "$GNUPGHOME"

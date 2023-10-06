@@ -1,0 +1,60 @@
+name: snapshot
+on: [ push, workflow_dispatch ]
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo env DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends apt-utils
+      - run: ./init_mirror
+      - uses: actions/upload-artifact@v3
+        with:
+          name: conf
+          path: |
+            repo.tar.xz
+            file_sets.tar.xz
+  mirror:
+    needs: init
+    name: mirror ${{ matrix.type }} part ${{ matrix.id }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        type: [ pkgs_all, pkgs_amd64, pkgs_arm64, srcs ]
+        id: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 ]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::544319711298:role/github-repo-oidc-role
+          role-duration-seconds: 28800
+          aws-region: eu-central-1
+      - run: aws sts get-caller-identity
+      - uses: actions/download-artifact@v3
+        with:
+          name: conf
+      - run: |
+          set -o pipefail
+          xz -d < file_sets.tar.xz | tar -xO ./${{ matrix.type }}_${{ matrix.id }} > files
+          ./mirror_file_set files
+  publish:
+    needs: mirror
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::544319711298:role/github-repo-oidc-role
+          aws-region: eu-central-1
+      - run: aws sts get-caller-identity
+      - uses: actions/download-artifact@v3
+        with:
+          name: conf
+      - run: |
+          set -o pipefail
+          mkdir repo
+          xz -d < repo.tar.xz | tar -x -C repo
+          aws s3 cp --recursive repo s3://gardenlinux-repo-test/dists/test

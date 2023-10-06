@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+set -eufo pipefail
+
+num_pkgs="$(wc -l "$1" | cut -d ' ' -f 1)"
+cntr=0
+
+existing_file_set="$(mktemp)"
+aws s3api list-objects --bucket gardenlinux-repo-test | jq -r '.Contents // [] | .[].Key' > "$existing_file_set"
+
+while read -r source target sha256sums; do
+	cntr=$(( cntr + 1 ))
+	tr ' ' '\n' <<< "$sha256sums" | while IFS=':' read -r hash file; do
+		source_file="$source"
+		target_file="$target"
+		if [ -n "$file" ]; then
+			source_file+="/$file"
+			target_file+="/$file"
+		fi
+
+		if grep -xF "$target_file" "$existing_file_set" > /dev/null; then
+			echo "$cntr/$num_pkgs $target_file already exists, skipped"
+			continue
+		fi
+
+		if file="$(./download_checked "$hash" "http://deb.debian.org/debian/$source_file")"; then
+			size="$(wc -c "$file" | cut -d ' ' -f 1)"
+			aws s3 cp --quiet "$file" "s3://gardenlinux-repo-test/$target_file"
+			rm "$file"
+			echo "$cntr/$num_pkgs $target_file uploaded ($(numfmt --to=iec-i --suffix=B "$size"))"
+		else
+			exit 1
+		fi
+	done
+done < "$1"

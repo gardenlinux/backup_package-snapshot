@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -eufo pipefail
+
+file="$(mktemp)"
+curl -sSL "$2" > "$file"
+hash="$(sha256sum "$file" | head -c 64)"
+if [ "$hash" != "$1" ]; then
+	echo "invalid sha256sum" >&2
+	rm "$file"
+	exit 1
+fi
+echo "$file"
