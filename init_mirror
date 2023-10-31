@@ -1,9 +1,28 @@
 #!/usr/bin/env bash
+#
+# Description:
+# This script creates file_sets.tar.xz and repo.tar.xz. 
+# file_sets.tar.xz comprises a configurable number of sub-files, set by NUM_FILE_SETS, which also 
+# dictates the parallel mirror_file_set calls in subsequent GitHub pipeline stages.
+#
+# Usage:
+# ./init_mirror
+#
+# Effects:
+# - Generates 'file_sets.tar.xz': A tarball containing pool paths and respective hashes 
+#   of binary and source packages. Each line follows the schema:
+#     <debian pool path> <new pool path> <sha256sum>
+# - Generates 'repo.tar.xz': A tarball containing repository metadata files such as:
+#   - keyring.gpg
+#   - InRelease files
+#   - Packages.gz files
+#   - Sources.gz files
 
 set -exufo pipefail
 
 t="$(date '+%s')"
 
+NUM_FILE_SETS="32"
 GNUPGHOME="$(mktemp -d)"
 chmod 700 "$GNUPGHOME"
 export GNUPGHOME
@@ -25,7 +44,7 @@ for arch in all amd64 arm64; do
 	mkdir "$repo/$(dirname "$file")"
 	hash="$(awk -v file="$file" '!/^ / { flag=0 } flag && $3 == file { print $1 } /^SHA256:$/ { flag = 1 }' < "$release")"
 	pkgs="$(./download_checked "$hash" "http://deb.debian.org/debian/dists/testing/$file")"
-	xz -d < "$pkgs" | ./packages.awk file_set_prefix="$file_sets/pkgs_${arch}_" num_file_sets=32 | xz > "$repo/$file"
+	xz -d < "$pkgs" | ./packages.awk file_set_prefix="$file_sets/pkgs_${arch}_" num_file_sets=${NUM_FILE_SETS} | xz > "$repo/$file"
 	rm "$pkgs"
 	size="$(wc -c "$repo/$file" | cut -d ' ' -f 1)"
 	hash="$(sha256sum "$repo/$file" | head -c 64)"
@@ -36,7 +55,7 @@ file="main/source/Sources.xz"
 mkdir "$repo/$(dirname "$file")"
 hash="$(awk -v file="$file" '!/^ / { flag=0 } flag && $3 == file { print $1 } /^SHA256:$/ { flag = 1 }' < "$release")"
 srcs="$(./download_checked "$hash" "http://deb.debian.org/debian/dists/testing/$file")"
-xz -d < "$srcs" | ./sources.awk file_set_prefix="$file_sets/srcs_" num_file_sets=32 | xz > "$repo/$file"
+xz -d < "$srcs" | ./sources.awk file_set_prefix="$file_sets/srcs_" num_file_sets=${NUM_FILE_SETS} | xz > "$repo/$file"
 rm "$srcs"
 size="$(wc -c "$repo/$file" | cut -d ' ' -f 1)"
 hash="$(sha256sum "$repo/$file" | head -c 64)"

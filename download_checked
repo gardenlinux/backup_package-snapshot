@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# 
+# usage: ./download_checked <hash> <download url>
+#
+# Downloads a given URL and verifies if the sha256 of downloaded file matches the input hash
 
 set -eufo pipefail
 

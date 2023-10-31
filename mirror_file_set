@@ -1,4 +1,28 @@
 #!/usr/bin/env bash
+# Description:
+# This script is designed to work as part of a pipeline to mirror Debian packages. 
+# It takes a single file extracted from file_sets.tar.xz as input, downloads the 
+# Debian file specified in the input file from the Debian repository, and uploads 
+# it to a specified S3 bucket. Additionally, it validates the integrity of the 
+# downloaded file by checking its hash.
+#
+# Usage:
+# ./mirror_file_set <input_file>
+#
+# Arguments:
+# <input_file>: A text file containing lines that follow the schema:
+#               <debian pool path> <new pool path> <sha256sum>
+#               Each line represents a Debian package to be downloaded and mirrored.
+#
+# Behavior:
+# For each line in the input file:
+# 1. Construct the Debian file URL using: http://deb.debian.org/debian/<debian pool path>
+# 2. Download the Debian file.
+# 3. Upload the file to the S3 bucket at the location specified by <new pool path>.
+# 4. Verify the SHA256 hash of the downloaded file matches <sha256sum>.
+#    If the hash does not match, report an error.
+
+
 
 set -eufo pipefail
 
