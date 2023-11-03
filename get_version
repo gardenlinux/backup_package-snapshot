@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# First release of Garden Linux
+gl_start="2020-03-31"
+
+currentdate=$(date -u +"%Y-%m-%d")
+datediff=$(($(date -u -d "$currentdate" +"%s") - $(date -u -d "$gl_start" +"%s")))
+days_since_start=$((datediff / 86400))
+
+echo $days_since_start

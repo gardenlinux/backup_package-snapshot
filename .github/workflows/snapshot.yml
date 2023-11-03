@@ -44,7 +44,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
+    outputs:
+      gl_version: ${{ steps.get_version.outputs.gl_version }}
+
     steps:
+      - uses: actions/checkout@v4
+      - name: Get Garden Linux version
+        id: get_version
+        run: |
+          echo "::set-output name=gl_version::$(./get_version)"
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::544319711298:role/github-repo-oidc-role
@@ -57,4 +65,4 @@ jobs:
           set -o pipefail
           mkdir repo
           xz -d < repo.tar.xz | tar -x -C repo
-          aws s3 cp --recursive repo s3://gardenlinux-repo-test/dists/test
+          aws s3 cp --recursive repo s3://gardenlinux-repo-test/dists/${{ steps.get_version.outputs.gl_version }}
