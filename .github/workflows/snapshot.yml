@@ -1,5 +1,8 @@
 name: snapshot
-on: [ push, workflow_dispatch ]
+on:
+  - workflow_dispatch
+  - schedule:
+      cron: '0 0 * * *'
 jobs:
   init:
     runs-on: ubuntu-latest
@@ -59,4 +62,8 @@ jobs:
           mkdir repo
           xz -d < repo.tar.xz | tar -x -C repo
           version="$(./get_version)"
+          if aws s3api head-object --bucket gardenlinux-repo-test --key dists/$version/InRelease; then
+            echo "release $version already exists" >&2
+            exit 1
+          fi
           aws s3 cp --recursive repo s3://gardenlinux-repo-test/dists/$version
