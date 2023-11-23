@@ -20,7 +20,7 @@
 
 set -exufo pipefail
 
-t="$(date '+%s')"
+t="$(date -u -Is)"
 
 NUM_FILE_SETS="32"
 GNUPGHOME="$(mktemp -d)"
@@ -63,16 +63,27 @@ echo " $hash $size $file" >> "$index_files"
 
 rm "$release"
 
-gpg --clearsign --armor > "$repo/InRelease" << EOF
+cat << EOF | ./strip_newlines.py | gpg --clearsign > "$repo/InRelease"
+Codename: snapshot
 Components: main
 Architectures: all amd64 arm64
-Date: $(date -R -u -d "@$t")
-Valid-Until: $(date -R -u -d "@$t + 7 days")
+Date: $(date -R -u -d "$t")
+Valid-Until: $(date -R -u -d "$t + 7 days")
 SHA256:
 $(cat "$index_files")
 EOF
 
 gpg --export root > "$repo/keyring.gpg"
+
+test_dir="$(mktemp -d)"
+touch "$test_dir/keyring.gpg"
+gpg --no-default-keyring --keyring "$test_dir/keyring.gpg" --import < "$repo/keyring.gpg"
+cp "$repo/InRelease" "$test_dir/InRelease"
+./split_sig "$test_dir/InRelease" "$test_dir/Release" "$test_dir/Release.gpg"
+echo +++ testing InRelease +++
+gpgv --keyring "$test_dir/keyring.gpg" "$test_dir/InRelease"
+echo +++ testing split Release, Release.gpg +++
+gpgv --keyring "$test_dir/keyring.gpg" "$test_dir/Release.gpg" "$test_dir/Release"
 
 tar -c -C "$repo" . | xz > repo.tar.xz
 tar -c -C "$file_sets" . | xz > file_sets.tar.xz

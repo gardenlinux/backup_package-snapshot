@@ -9,7 +9,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sudo env DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends apt-utils
-      - run: ./init_mirror
+      - run: |
+          version="$(./get_version)"
+          ./init_mirror "$version"
       - uses: actions/upload-artifact@v3
         with:
           name: conf
