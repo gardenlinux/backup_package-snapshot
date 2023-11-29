@@ -69,7 +69,7 @@ Codename: $version
 Components: main
 Architectures: all amd64 arm64
 Date: $(date -R -u -d "$t")
-Valid-Until: $(date -R -u -d "$t + 7 days")
+Valid-Until: $(date -R -u -d "$t + 100 years")
 SHA256:
 $(cat "$index_files")
 EOF
