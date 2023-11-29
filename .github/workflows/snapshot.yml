@@ -86,6 +86,7 @@ jobs:
           echo "$version" > container/version
           curl -sSf "https://gardenlinux-repo-test.s3.eu-central-1.amazonaws.com/dists/$version/keyring.gpg" > container/keyring.gpg
           (cd container && ./build container-amd64 container-arm64)
+          podman login -u token -p ${{ github.token }} ghcr.io
           image_amd64="$(podman load < container/.build/container-amd64-*.oci | awk '{ print $NF }')"
           podman tag "$image_amd64" ghcr.io/${{ github.repository }}:amd64-$version
           podman push ghcr.io/${{ github.repository }}:amd64-$version
