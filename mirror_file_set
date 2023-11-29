@@ -52,7 +52,7 @@ while read -r source target sha256sums; do
 		if file="$(./download_checked "$hash" "http://deb.debian.org/debian/$source_file")"; then
 			size="$(wc -c "$file" | cut -d ' ' -f 1)"
 			aws s3 cp --quiet "$file" "s3://gardenlinux-repo-test/$target_file"
-			aws s3 cp --quiet "$file" "s3://gardenlinux-repo-test/$target_file_transformed"
+			[ "$target_file" = "$target_file_transformed" ] || aws s3 cp --quiet "$file" "s3://gardenlinux-repo-test/$target_file_transformed"
 			rm "$file"
 			echo "$cntr/$num_pkgs $target_file uploaded ($(numfmt --to=iec-i --suffix=B "$size"))"
 		else
