@@ -20,6 +20,7 @@
 
 set -exufo pipefail
 
+version="$1"
 t="$(date -u -Is)"
 
 NUM_FILE_SETS="32"
@@ -64,7 +65,7 @@ echo " $hash $size $file" >> "$index_files"
 rm "$release"
 
 cat << EOF | ./strip_newlines.py | gpg --clearsign > "$repo/InRelease"
-Codename: snapshot
+Codename: $version
 Components: main
 Architectures: all amd64 arm64
 Date: $(date -R -u -d "$t")

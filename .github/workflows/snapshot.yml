@@ -5,13 +5,17 @@ on:
     - cron: '0 0 * * *'
 jobs:
   init:
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: sudo env DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends apt-utils
-      - run: |
+      - id: version
+        run: |
           version="$(./get_version)"
-          ./init_mirror "$version"
+          echo "version=$version" > "$GITHUB_OUTPUT"
+      - run: sudo env DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends apt-utils
+      - run: ./init_mirror '${{ steps.version.outputs.version }}'
       - uses: actions/upload-artifact@v3
         with:
           name: conf
@@ -45,7 +49,7 @@ jobs:
           xz -d < file_sets.tar.xz | tar -xO ./${{ matrix.type }}_${{ matrix.id }} > files
           ./mirror_file_set files
   publish:
-    needs: mirror
+    needs: [ init, mirror ]
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -63,9 +67,15 @@ jobs:
           set -o pipefail
           mkdir repo
           xz -d < repo.tar.xz | tar -x -C repo
-          version="$(./get_version)"
+          version='${{ needs.init.outputs.version }}'
           if aws s3api head-object --bucket gardenlinux-repo-test --key dists/$version/InRelease; then
             echo "release $version already exists" >&2
             exit 1
           fi
           aws s3 cp --recursive repo s3://gardenlinux-repo-test/dists/$version
+  # container:
+  #   needs: [ init, publish ]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - run: ./build_container
