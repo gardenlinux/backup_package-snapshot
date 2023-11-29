@@ -42,7 +42,9 @@ while read -r source target sha256sums; do
 			target_file+="/$file"
 		fi
 
-		if grep -xF "$target_file" "$existing_file_set" > /dev/null; then
+		target_file_transformed="$(tr '+' ' ' <<< "$target_file")"
+
+		if grep -xF "$target_file" "$existing_file_set" > /dev/null && grep -xF "$target_file_transformed" "$existing_file_set" > /dev/null; then
 			echo "$cntr/$num_pkgs $target_file already exists, skipped"
 			continue
 		fi
@@ -50,6 +52,7 @@ while read -r source target sha256sums; do
 		if file="$(./download_checked "$hash" "http://deb.debian.org/debian/$source_file")"; then
 			size="$(wc -c "$file" | cut -d ' ' -f 1)"
 			aws s3 cp --quiet "$file" "s3://gardenlinux-repo-test/$target_file"
+			aws s3 cp --quiet "$file" "s3://gardenlinux-repo-test/$target_file_transformed"
 			rm "$file"
 			echo "$cntr/$num_pkgs $target_file uploaded ($(numfmt --to=iec-i --suffix=B "$size"))"
 		else
