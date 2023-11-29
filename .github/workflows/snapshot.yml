@@ -73,9 +73,23 @@ jobs:
             exit 1
           fi
           aws s3 cp --recursive repo s3://gardenlinux-repo-test/dists/$version
-  # container:
-  #   needs: [ init, publish ]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - run: ./build_container
+  containerize:
+    needs: [ init, publish ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          version='${{ needs.init.outputs.version }}'
+          echo "$version" > container/version
+          curl -sSf "https://gardenlinux-repo-test.s3.eu-central-1.amazonaws.com/dists/$version/keyring.gpg" > container/keyring.gpg
+          ./container/build container-amd64 container-arm64
+          image_amd64="$(podman load < container/.build/container-amd64-*.oci | awk '{ print $NF }')"
+          podman tag "$image_amd64" ghcr.io/${{ github.repository }}:amd64-$version
+          podman push ghcr.io/${{ github.repository }}:amd64-$version
+          image_arm64="$(podman load < container/.build/container-arm64-*.oci | awk '{ print $NF }')"
+          podman tag "$image_arm64" ghcr.io/${{ github.repository }}:arm64-$version
+          podman push ghcr.io/${{ github.repository }}:arm64-$version
+          podman manifest create ghcr.io/${{ github.repository }}:$version
+          podman manifest add ghcr.io/${{ github.repository }}:$version ghcr.io/${{ github.repository }}:amd64-$version
+          podman manifest add ghcr.io/${{ github.repository }}:$version ghcr.io/${{ github.repository }}:arm64-$version
+          podman push ghcr.io/${{ github.repository }}:$version

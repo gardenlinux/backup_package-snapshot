@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+set -eufo pipefail
+
+echo "https://gardenlinux-repo-test.s3.eu-central-1.amazonaws.com"
