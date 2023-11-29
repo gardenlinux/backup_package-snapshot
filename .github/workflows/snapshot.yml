@@ -79,6 +79,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
+          sudo apt-get update
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends qemu-user-static
+      - run: |
           version='${{ needs.init.outputs.version }}'
           echo "$version" > container/version
           curl -sSf "https://gardenlinux-repo-test.s3.eu-central-1.amazonaws.com/dists/$version/keyring.gpg" > container/keyring.gpg
