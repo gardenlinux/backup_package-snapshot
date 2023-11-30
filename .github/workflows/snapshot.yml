@@ -97,3 +97,6 @@ jobs:
           podman manifest add ghcr.io/${{ github.repository }}:$version ghcr.io/${{ github.repository }}:amd64-$version
           podman manifest add ghcr.io/${{ github.repository }}:$version ghcr.io/${{ github.repository }}:arm64-$version
           podman push ghcr.io/${{ github.repository }}:$version
+      - run: |
+          version='${{ needs.init.outputs.version }}'
+          podman run --rm --arch amd64 ghcr.io/${{ github.repository }}:$version bash -c 'apt-get update && apt-get install -y vim'
