@@ -27,7 +27,6 @@ NUM_FILE_SETS="32"
 GNUPGHOME="$(mktemp -d)"
 chmod 700 "$GNUPGHOME"
 export GNUPGHOME
-# keyring="$(mktemp)"
 gpg --generate-key --batch < gpg-key.conf
 gpg --import < debian-archive-keyring.gpg
 
@@ -75,16 +74,6 @@ $(cat "$index_files")
 EOF
 
 gpg --export root > "$repo/keyring.gpg"
-
-test_dir="$(mktemp -d)"
-touch "$test_dir/keyring.gpg"
-gpg --no-default-keyring --keyring "$test_dir/keyring.gpg" --import < "$repo/keyring.gpg"
-cp "$repo/InRelease" "$test_dir/InRelease"
-./split_sig "$test_dir/InRelease" "$test_dir/Release" "$test_dir/Release.gpg"
-echo +++ testing InRelease +++
-gpgv --keyring "$test_dir/keyring.gpg" "$test_dir/InRelease"
-echo +++ testing split Release, Release.gpg +++
-gpgv --keyring "$test_dir/keyring.gpg" "$test_dir/Release.gpg" "$test_dir/Release"
 
 tar -c -C "$repo" . | xz > repo.tar.xz
 tar -c -C "$file_sets" . | xz > file_sets.tar.xz
